@@ -1,0 +1,850 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local LP = Players.LocalPlayer
+
+local Islands = {
+	{N = "Dungeon", P = Vector3.new(10959.99, 134.04, 1250.57), I = "🏰"},
+	{N = "Alien Island", P = Vector3.new(2186.42, 35.82, 1302.21), I = "👽"},
+	{N = "Random Fruit", P = Vector3.new(2064.01, 36.25, 1093.72), I = "🍎"},
+	{N = "Reset Race Stats", P = Vector3.new(2052.92, 71.81, 1071.29), I = "🔄"},
+	{N = "Fruit Shop", P = Vector3.new(2154.84, 79.04, 824.23), I = "🛒"},
+	{N = "Sea Event", P = Vector3.new(2227.14, 362.20, -1205.43), I = "🌊"},
+	{N = "Saber Lord", P = Vector3.new(1687.59, 289.10, -1166.54), I = "⚔️"},
+	{N = "Awaken Fruit", P = Vector3.new(2066.98, 54.82, 551.41), I = "✨"},
+	{N = "Monkey Island", P = Vector3.new(3725.56, 45.42, 8813.90), I = "🐒"},
+	{N = "Sea Beasts", P = Vector3.new(4543.48, 47.37, 11622.30), I = "🐉"},
+	{N = "Luma Forest", P = Vector3.new(-3935.36, 77.38, 6265.37), I = "🌲"},
+	{N = "Forgotten Arena", P = Vector3.new(-6105.61, 33.69, 1014.73), I = "🏟️"},
+	{N = "Drakenhole Fort", P = Vector3.new(6948.99, 49.78, -5753.79), I = "🐲"},
+}
+
+local ViToEn = {
+	["nguc toi"] = "dungeon", ["hang nguc"] = "dungeon",
+	["dao nguoi ngoai hanh tinh"] = "alien island", ["nguoi ngoai hanh tinh"] = "alien",
+	["trai cay ngau nhien"] = "random fruit", ["ngau nhien"] = "random",
+	["dat lai"] = "reset", ["dat lai chung toc"] = "reset race",
+	["cua hang trai cay"] = "fruit shop", ["cua hang"] = "shop",
+	["su kien bien"] = "sea event", ["bien"] = "sea",
+	["chua te kiem"] = "saber lord", ["kiem"] = "saber",
+	["thuc tinh trai cay"] = "awaken fruit", ["thuc tinh"] = "awaken",
+	["dao khi"] = "monkey island", ["khi"] = "monkey",
+	["quai vat bien"] = "sea beasts", ["quai vat"] = "beasts",
+	["rung luma"] = "luma forest", ["rung"] = "forest",
+	["dau truong bi lang quen"] = "forgotten arena", ["dau truong"] = "arena",
+	["phao dai"] = "drakenhole fort", ["rong"] = "drakenhole",
+	["boss"] = "boss", ["trum"] = "boss",
+	["nha buon"] = "dealer", ["thuong nhan"] = "merchant",
+	["dao"] = "island", ["npc"] = "npc",
+	["quan"] = "shop", ["mua"] = "buy",
+	["ban"] = "sell", ["nhiem vu"] = "quest",
+	["vua"] = "king", ["hai tac"] = "pirate",
+	["thuy thu"] = "marine", ["linh"] = "marine",
+	["tho reo"] = "blacksmith", ["tho"] = "smith",
+	["bac si"] = "doctor", ["y ta"] = "nurse",
+	["tien thuong"] = "bounty", ["san tien"] = "bounty",
+}
+
+local C = {
+	bg = Color3.fromRGB(10, 10, 14),
+	panel = Color3.fromRGB(18, 18, 24),
+	card = Color3.fromRGB(26, 26, 34),
+	cardH = Color3.fromRGB(36, 36, 48),
+	accent = Color3.fromRGB(65, 125, 235),
+	accentH = Color3.fromRGB(85, 145, 255),
+	green = Color3.fromRGB(38, 175, 85),
+	red = Color3.fromRGB(225, 50, 50),
+	orange = Color3.fromRGB(235, 155, 25),
+	text = Color3.fromRGB(232, 232, 242),
+	dim = Color3.fromRGB(105, 105, 130),
+	stroke = Color3.fromRGB(40, 40, 54),
+	tab = Color3.fromRGB(16, 16, 22),
+	tabA = Color3.fromRGB(65, 125, 235),
+	togOn = Color3.fromRGB(38, 175, 85),
+	togOff = Color3.fromRGB(50, 50, 65),
+	input = Color3.fromRGB(16, 16, 22),
+	fly = Color3.fromRGB(100, 180, 255),
+	ghost = Color3.fromRGB(180, 130, 255),
+	demon = Color3.fromRGB(200, 20, 20),
+}
+
+local TI = {
+	f = TweenInfo.new(0.1, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+	s = TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+	o = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	c = TweenInfo.new(0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+	b = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+}
+
+local ST = {
+	open = true, tab = 1, tping = false, lastTP = 0,
+	fly = false, flyConn = nil, flySpeed = 80, flyBV = nil, flyBG = nil,
+	ghost = false, ghostConn = nil, ghostClone = nil, ghostOrigTrans = {},
+	infJump = false, jumpConn = nil,
+	demon = false, demonConn = nil,
+	ws = 16, wsConn = nil,
+}
+
+local function mk(cl, pr, ch)
+	local i = Instance.new(cl)
+	for k, v in pr do i[k] = v end
+	if ch then for _, x in ch do x.Parent = i end end
+	return i
+end
+local function rnd(p, r) return mk("UICorner", {CornerRadius = UDim.new(0, r or 8), Parent = p}) end
+local function stk(p, c, t) return mk("UIStroke", {Color = c or C.stroke, Thickness = t or 1, Parent = p}) end
+local function pad(p, t, b, l, r) return mk("UIPadding", {PaddingTop = UDim.new(0, t or 0), PaddingBottom = UDim.new(0, b or 0), PaddingLeft = UDim.new(0, l or 0), PaddingRight = UDim.new(0, r or 0), Parent = p}) end
+local function tw(o, i, p) return TweenService:Create(o, i, p) end
+local function press(b) local s = b.Size tw(b, TI.f, {Size = UDim2.new(s.X.Scale, s.X.Offset - 2, s.Y.Scale, s.Y.Offset - 1)}):Play() task.delay(0.05, function() tw(b, TI.b, {Size = s}):Play() end) end
+
+local function getRoot()
+	local ch = LP.Character
+	return ch and ch:FindFirstChild("HumanoidRootPart"), ch and ch:FindFirstChild("Humanoid"), ch
+end
+
+local function removeViDiacritics(str)
+	local map = {
+		["à"]="a",["á"]="a",["ả"]="a",["ã"]="a",["ạ"]="a",
+		["ă"]="a",["ằ"]="a",["ắ"]="a",["ẳ"]="a",["ẵ"]="a",["ặ"]="a",
+		["â"]="a",["ầ"]="a",["ấ"]="a",["ẩ"]="a",["ẫ"]="a",["ậ"]="a",
+		["è"]="e",["é"]="e",["ẻ"]="e",["ẽ"]="e",["ẹ"]="e",
+		["ê"]="e",["ề"]="e",["ế"]="e",["ể"]="e",["ễ"]="e",["ệ"]="e",
+		["ì"]="i",["í"]="i",["ỉ"]="i",["ĩ"]="i",["ị"]="i",
+		["ò"]="o",["ó"]="o",["ỏ"]="o",["õ"]="o",["ọ"]="o",
+		["ô"]="o",["ồ"]="o",["ố"]="o",["ổ"]="o",["ỗ"]="o",["ộ"]="o",
+		["ơ"]="o",["ờ"]="o",["ớ"]="o",["ở"]="o",["ỡ"]="o",["ợ"]="o",
+		["ù"]="u",["ú"]="u",["ủ"]="u",["ũ"]="u",["ụ"]="u",
+		["ư"]="u",["ừ"]="u",["ứ"]="u",["ử"]="u",["ữ"]="u",["ự"]="u",
+		["ỳ"]="y",["ý"]="y",["ỷ"]="y",["ỹ"]="y",["ỵ"]="y",
+		["đ"]="d",
+		["À"]="A",["Á"]="A",["Ả"]="A",["Ã"]="A",["Ạ"]="A",
+		["Ă"]="A",["Ằ"]="A",["Ắ"]="A",["Ẳ"]="A",["Ẵ"]="A",["Ặ"]="A",
+		["Â"]="A",["Ầ"]="A",["Ấ"]="A",["Ẩ"]="A",["Ẫ"]="A",["Ậ"]="A",
+		["È"]="E",["É"]="E",["Ẻ"]="E",["Ẽ"]="E",["Ẹ"]="E",
+		["Ê"]="E",["Ề"]="E",["Ế"]="E",["Ể"]="E",["Ễ"]="E",["Ệ"]="E",
+		["Ì"]="I",["Í"]="I",["Ỉ"]="I",["Ĩ"]="I",["Ị"]="I",
+		["Ò"]="O",["Ó"]="O",["Ỏ"]="O",["Õ"]="O",["Ọ"]="O",
+		["Ô"]="O",["Ồ"]="O",["Ố"]="O",["Ổ"]="O",["Ỗ"]="O",["Ộ"]="O",
+		["Ơ"]="O",["Ờ"]="O",["Ớ"]="O",["Ở"]="O",["Ỡ"]="O",["Ợ"]="O",
+		["Ù"]="U",["Ú"]="U",["Ủ"]="U",["Ũ"]="U",["Ụ"]="U",
+		["Ư"]="U",["Ừ"]="U",["Ứ"]="U",["Ử"]="U",["Ữ"]="U",["Ự"]="U",
+		["Ỳ"]="Y",["Ý"]="Y",["Ỷ"]="Y",["Ỹ"]="Y",["Ỵ"]="Y",
+		["Đ"]="D",
+	}
+	local result = ""
+	for i = 1, #str do
+		local ch = str:sub(i, i)
+		local found = false
+		for vi, en in map do
+			if str:sub(i, i + #vi - 1) == vi then
+				result = result .. en
+				found = true
+				break
+			end
+		end
+		if not found then result = result .. ch end
+	end
+	return result
+end
+
+local function translateQuery(input)
+	local cleaned = removeViDiacritics(input):lower():gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	for vi, en in ViToEn do
+		if cleaned:find(vi, 1, true) then return en end
+	end
+	return cleaned
+end
+
+local function fuzzyMatch(a, b)
+	a, b = a:lower(), b:lower()
+	if a == b then return 1 end
+	if b:find(a, 1, true) then return 0.9 end
+	if a:find(b, 1, true) then return 0.85 end
+	local matched = 0
+	local aIdx = 1
+	for i = 1, #b do
+		if aIdx <= #a and b:sub(i, i) == a:sub(aIdx, aIdx) then
+			matched = matched + 1
+			aIdx = aIdx + 1
+		end
+	end
+	return matched / math.max(#a, 1)
+end
+
+local function deepSearch(parent, query, results, depth)
+	if depth > 6 or #results >= 20 then return end
+	for _, child in parent:GetChildren() do
+		local score = fuzzyMatch(query, removeViDiacritics(child.Name))
+		if score >= 0.4 then
+			local part = child:FindFirstChild("HumanoidRootPart") or child:FindFirstChild("Head") or child:FindFirstChild("Torso") or (child:IsA("BasePart") and child) or child:FindFirstChildWhichIsA("BasePart")
+			if part then
+				local isPlayer = false
+				for _, plr in Players:GetPlayers() do if plr.Character == child then isPlayer = true break end end
+				if not isPlayer then
+					table.insert(results, {name = child.Name, part = part, model = child, score = score, hasHum = child:FindFirstChildOfClass("Humanoid") ~= nil})
+				end
+			end
+		end
+		if (child:IsA("Model") or child:IsA("Folder") or child:IsA("WorldModel")) and not child:IsA("Camera") then
+			deepSearch(child, query, results, depth + 1)
+		end
+	end
+end
+
+local function smartSearch(rawQuery)
+	local enQuery = translateQuery(rawQuery)
+	local results = {}
+	deepSearch(Workspace, enQuery, results, 0)
+	if #results < 3 then
+		local cleaned = removeViDiacritics(rawQuery):lower()
+		if cleaned ~= enQuery then deepSearch(Workspace, cleaned, results, 0) end
+	end
+	local seen = {}
+	local unique = {}
+	for _, r in results do
+		local key = r.name .. tostring(r.part)
+		if not seen[key] then seen[key] = true table.insert(unique, r) end
+	end
+	table.sort(unique, function(a, b)
+		if math.abs(a.score - b.score) > 0.1 then return a.score > b.score end
+		local root = getRoot()
+		if not root then return false end
+		return (a.part.Position - root.Position).Magnitude < (b.part.Position - root.Position).Magnitude
+	end)
+	return unique
+end
+
+local function searchIsland(rawQuery)
+	local enQuery = translateQuery(rawQuery)
+	local best, bestScore = nil, 0
+	for _, isl in Islands do
+		local s = fuzzyMatch(enQuery, isl.N:lower())
+		if s > bestScore then bestScore = s best = isl end
+	end
+	if bestScore >= 0.35 then return best end
+	return nil
+end
+
+local function safeTp(pos)
+	if ST.tping or tick() - ST.lastTP < 0.35 then return false end
+	local root, hum = getRoot()
+	if not root or not hum then return false end
+	ST.tping = true
+	ST.lastTP = tick()
+	if hum.SeatPart then hum.Sit = false task.wait(0.1) end
+	root.Anchored = true
+	task.wait(0.03)
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+	root.CFrame = CFrame.new(pos + Vector3.new(0, 2, 0))
+	task.wait(0.06)
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+	root.Anchored = false
+	pcall(function()
+		local s = Instance.new("Sound")
+		s.SoundId = "rbxassetid://6895079853"
+		s.Volume = 0.3 s.PlaybackSpeed = 1.3
+		s.Parent = root s.PlayOnRemove = true s:Destroy()
+	end)
+	ST.tping = false
+	return true
+end
+
+local function tpFaceNPC(npcPart)
+	local root = getRoot()
+	if not root or not npcPart then return false end
+	local npcPos = npcPart.Position
+	local dir = (root.Position - npcPos)
+	dir = Vector3.new(dir.X, 0, dir.Z)
+	if dir.Magnitude < 0.1 then dir = Vector3.new(0, 0, 1) end
+	dir = dir.Unit
+	local targetPos = npcPos + dir * 5
+	targetPos = Vector3.new(targetPos.X, npcPos.Y, targetPos.Z)
+	if safeTp(targetPos) then
+		task.wait(0.08)
+		local r2 = getRoot()
+		if r2 then r2.CFrame = CFrame.lookAt(r2.Position, Vector3.new(npcPos.X, r2.Position.Y, npcPos.Z)) end
+		return true
+	end
+	return false
+end
+
+local function startFly()
+	local root, hum, char = getRoot()
+	if not root or not hum then return end
+	hum.PlatformStand = true
+
+	local bv = root:FindFirstChild("FlashFlyVel")
+	if bv then bv:Destroy() end
+	bv = mk("BodyVelocity", {Name = "FlashFlyVel", MaxForce = Vector3.new(math.huge, math.huge, math.huge), Velocity = Vector3.zero, P = 9000, Parent = root})
+	ST.flyBV = bv
+
+	local bg = root:FindFirstChild("FlashFlyGyro")
+	if bg then bg:Destroy() end
+	bg = mk("BodyGyro", {Name = "FlashFlyGyro", MaxTorque = Vector3.new(math.huge, math.huge, math.huge), D = 50, P = 5000, Parent = root})
+	ST.flyBG = bg
+
+	local flyAnim = nil
+	pcall(function()
+		local anim = Instance.new("Animation")
+		anim.AnimationId = "rbxassetid://507767515"
+		flyAnim = hum.Animator and hum.Animator:LoadAnimation(anim) or hum:LoadAnimation(anim)
+		flyAnim.Priority = Enum.AnimationPriority.Action4
+		flyAnim.Looped = true
+		flyAnim:Play()
+		flyAnim:AdjustSpeed(0)
+	end)
+
+	ST.flyConn = RunService.Heartbeat:Connect(function(dt)
+		if not ST.fly then return end
+		local r, h, ch = getRoot()
+		if not r or not h then return end
+		h.PlatformStand = true
+		local cam = Workspace.CurrentCamera
+		local mv = Vector3.zero
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then mv = mv + cam.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then mv = mv - cam.CFrame.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then mv = mv - cam.CFrame.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then mv = mv + cam.CFrame.RightVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.Space) then mv = mv + Vector3.yAxis end
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then mv = mv - Vector3.yAxis end
+		local speed = ST.flySpeed
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then speed = speed * 2.5 end
+		if mv.Magnitude > 0 then
+			mv = mv.Unit * speed
+			bv.Velocity = mv
+			local look = CFrame.lookAt(r.Position, r.Position + mv)
+			local tilt = CFrame.Angles(math.rad(-60), 0, 0)
+			bg.CFrame = look * tilt
+		else
+			bv.Velocity = Vector3.zero
+			bg.CFrame = cam.CFrame
+		end
+	end)
+
+	ST.flyAnimTrack = flyAnim
+end
+
+local function stopFly()
+	if ST.flyConn then ST.flyConn:Disconnect() ST.flyConn = nil end
+	local root, hum = getRoot()
+	if root then
+		local bv = root:FindFirstChild("FlashFlyVel")
+		if bv then bv:Destroy() end
+		local bg = root:FindFirstChild("FlashFlyGyro")
+		if bg then bg:Destroy() end
+	end
+	if hum then hum.PlatformStand = false end
+	if ST.flyAnimTrack then pcall(function() ST.flyAnimTrack:Stop() ST.flyAnimTrack:Destroy() end) ST.flyAnimTrack = nil end
+	ST.flyBV = nil
+	ST.flyBG = nil
+end
+
+local function startGhost()
+	local root, hum, char = getRoot()
+	if not root or not char then return end
+
+	ST.ghostOrigTrans = {}
+	local cloneChar = char:Clone()
+	for _, d in cloneChar:GetDescendants() do
+		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript") then d:Destroy() end
+	end
+	local cloneHum = cloneChar:FindFirstChildOfClass("Humanoid")
+	if cloneHum then
+		cloneHum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		cloneHum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		cloneHum.PlatformStand = true
+	end
+	for _, p in cloneChar:GetDescendants() do
+		if p:IsA("BasePart") then p.Anchored = true p.CanCollide = false end
+	end
+	cloneChar.Name = "GhostBody_" .. LP.UserId
+	cloneChar.Parent = Workspace
+	ST.ghostClone = cloneChar
+
+	for _, p in char:GetDescendants() do
+		if p:IsA("BasePart") then
+			ST.ghostOrigTrans[p] = p.Transparency
+			tw(p, TI.s, {Transparency = 0.95}):Play()
+		end
+	end
+
+	local head = char:FindFirstChild("Head")
+	if head then
+		for _, f in head:GetChildren() do
+			if f:IsA("Decal") then
+				ST.ghostOrigTrans[f] = f.Transparency
+				tw(f, TI.s, {Transparency = 0.95}):Play()
+			end
+		end
+	end
+
+	for _, acc in char:GetChildren() do
+		if acc:IsA("Accessory") then
+			local handle = acc:FindFirstChild("Handle")
+			if handle then
+				ST.ghostOrigTrans[handle] = handle.Transparency
+				tw(handle, TI.s, {Transparency = 0.95}):Play()
+			end
+		end
+	end
+
+	ST.ghostConn = RunService.Stepped:Connect(function()
+		local ch = LP.Character
+		if not ch then return end
+		for _, p in ch:GetDescendants() do
+			if p:IsA("BasePart") then p.CanCollide = false end
+		end
+	end)
+end
+
+local function stopGhost()
+	if ST.ghostConn then ST.ghostConn:Disconnect() ST.ghostConn = nil end
+	if ST.ghostClone then ST.ghostClone:Destroy() ST.ghostClone = nil end
+	local char = LP.Character
+	if char then
+		for obj, trans in ST.ghostOrigTrans do
+			if obj and obj.Parent then
+				pcall(function() tw(obj, TI.s, {Transparency = trans}):Play() end)
+			end
+		end
+		for _, p in char:GetDescendants() do
+			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then p.CanCollide = true end
+		end
+	end
+	ST.ghostOrigTrans = {}
+end
+
+local function startDemon()
+	local root, hum, char = getRoot()
+	if not root or not hum or not char then return end
+
+	local screamAnim = nil
+	pcall(function()
+		local a = Instance.new("Animation")
+		a.AnimationId = "rbxassetid://507770677"
+		screamAnim = hum.Animator and hum.Animator:LoadAnimation(a) or hum:LoadAnimation(a)
+		screamAnim.Priority = Enum.AnimationPriority.Action4
+		screamAnim:Play()
+	end)
+
+	pcall(function()
+		local s = Instance.new("Sound")
+		s.SoundId = "rbxassetid://262562442"
+		s.Volume = 0.6 s.PlaybackSpeed = 0.8
+		s.Parent = root s:Play()
+		game:GetService("Debris"):AddItem(s, 3)
+	end)
+
+	task.wait(1.2)
+	if screamAnim then pcall(function() screamAnim:Stop() end) end
+
+	for _, p in char:GetDescendants() do
+		if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+			tw(p, TI.s, {Color = Color3.fromRGB(120, 0, 0)}):Play()
+		end
+	end
+
+	local att = mk("Attachment", {Name = "DemonAura", Parent = root})
+
+	local p1 = mk("ParticleEmitter", {
+		Color = ColorSequence.new{
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 0, 0)),
+			ColorSequenceKeypoint.new(0.4, Color3.fromRGB(80, 0, 0)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
+		},
+		Size = NumberSequence.new{NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(0.5, 1.5), NumberSequenceKeypoint.new(1, 0)},
+		Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1)},
+		Lifetime = NumberRange.new(0.5, 1),
+		Rate = 80, Speed = NumberRange.new(2, 5),
+		SpreadAngle = Vector2.new(25, 25),
+		Acceleration = Vector3.new(0, 6, 0),
+		RotSpeed = NumberRange.new(-150, 150),
+		LightEmission = 0.6, LightInfluence = 0.1,
+		Parent = att,
+	})
+
+	local p2 = mk("ParticleEmitter", {
+		Color = ColorSequence.new{
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 0, 0)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
+		},
+		Size = NumberSequence.new{NumberSequenceKeypoint.new(0, 4), NumberSequenceKeypoint.new(1, 0.5)},
+		Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1)},
+		Lifetime = NumberRange.new(0.8, 1.5),
+		Rate = 35, Speed = NumberRange.new(1, 3),
+		SpreadAngle = Vector2.new(360, 360),
+		Acceleration = Vector3.new(0, 4, 0),
+		LightEmission = 0.3,
+		Parent = att,
+	})
+
+	local p3 = mk("ParticleEmitter", {
+		Color = ColorSequence.new(Color3.fromRGB(255, 30, 0)),
+		Size = NumberSequence.new{NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 0)},
+		Transparency = NumberSequence.new{NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)},
+		Lifetime = NumberRange.new(0.3, 0.6),
+		Rate = 50, Speed = NumberRange.new(4, 8),
+		SpreadAngle = Vector2.new(15, 15),
+		LightEmission = 1,
+		Parent = att,
+	})
+
+	local light = mk("PointLight", {Name = "DemonLight", Color = Color3.fromRGB(180, 0, 0), Brightness = 3, Range = 20, Parent = root})
+
+	ST.demonConn = RunService.Heartbeat:Connect(function()
+		if not ST.demon then return end
+		local r = getRoot()
+		if not r then return end
+		light.Brightness = 2.5 + math.sin(tick() * 4) * 1
+		light.Range = 18 + math.sin(tick() * 3) * 4
+	end)
+end
+
+local function stopDemon()
+	if ST.demonConn then ST.demonConn:Disconnect() ST.demonConn = nil end
+	local root, _, char = getRoot()
+	if root then
+		local att = root:FindFirstChild("DemonAura")
+		if att then att:Destroy() end
+		local lt = root:FindFirstChild("DemonLight")
+		if lt then lt:Destroy() end
+	end
+	if char then
+		for _, p in char:GetDescendants() do
+			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+				pcall(function()
+					if p:IsA("MeshPart") or p:IsA("Part") then
+						local desc = char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+						if not desc then tw(p, TI.s, {Color = Color3.fromRGB(163, 162, 165)}):Play() end
+					end
+				end)
+			end
+		end
+	end
+end
+
+local GUI = mk("ScreenGui", {Name = "FlashTPAlpha", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, IgnoreGuiInset = false})
+pcall(function() GUI.Parent = CoreGui end)
+if not GUI.Parent then GUI.Parent = LP:WaitForChild("PlayerGui") end
+
+local TogBtn = mk("TextButton", {Size = UDim2.new(0, 40, 0, 40), Position = UDim2.new(0, 12, 0.5, -20), BackgroundColor3 = C.accent, Text = "⚡", TextSize = 17, Font = Enum.Font.GothamBold, TextColor3 = C.text, AutoButtonColor = false, Visible = false, ZIndex = 10, Parent = GUI})
+rnd(TogBtn, 20) stk(TogBtn, C.accentH, 1.5)
+
+local Main = mk("Frame", {Name = "Main", Size = UDim2.new(0, 210, 0, 360), Position = UDim2.new(0, 12, 0.5, -180), BackgroundColor3 = C.bg, BorderSizePixel = 0, ClipsDescendants = true, Parent = GUI})
+rnd(Main, 11) stk(Main, C.stroke, 1)
+
+local TBar = mk("Frame", {Size = UDim2.new(1, 0, 0, 34), BackgroundColor3 = C.panel, BorderSizePixel = 0, Parent = Main})
+rnd(TBar, 11)
+mk("Frame", {Size = UDim2.new(1, 0, 0, 11), Position = UDim2.new(0, 0, 1, -11), BackgroundColor3 = C.panel, BorderSizePixel = 0, Parent = TBar})
+local al = mk("Frame", {Size = UDim2.new(1, 0, 0, 2), Position = UDim2.new(0, 0, 1, 0), BackgroundColor3 = C.accent, BorderSizePixel = 0, Parent = TBar})
+mk("UIGradient", {Color = ColorSequence.new(C.accent, C.accentH), Rotation = 0, Parent = al})
+
+mk("TextLabel", {Size = UDim2.new(1, -46, 1, 0), Position = UDim2.new(0, 9, 0, 0), BackgroundTransparency = 1, Text = "⚡ FLASH", TextColor3 = C.text, TextSize = 13, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Parent = TBar})
+mk("TextLabel", {Size = UDim2.new(0, 28, 0, 14), Position = UDim2.new(0, 65, 0.5, -7), BackgroundColor3 = C.accent, TextColor3 = C.text, Text = "α1.0", TextSize = 8, Font = Enum.Font.GothamBold, Parent = TBar}, {mk("UICorner", {CornerRadius = UDim.new(0, 3)})})
+
+local XBtn = mk("TextButton", {Size = UDim2.new(0, 24, 0, 22), Position = UDim2.new(1, -30, 0.5, -11), BackgroundColor3 = C.bg, Text = "✕", TextColor3 = C.dim, TextSize = 10, Font = Enum.Font.GothamBold, AutoButtonColor = false, Parent = TBar})
+rnd(XBtn, 5)
+XBtn.MouseEnter:Connect(function() tw(XBtn, TI.f, {BackgroundColor3 = C.red, TextColor3 = C.text}):Play() end)
+XBtn.MouseLeave:Connect(function() tw(XBtn, TI.f, {BackgroundColor3 = C.bg, TextColor3 = C.dim}):Play() end)
+
+local TabBar = mk("Frame", {Size = UDim2.new(1, -10, 0, 26), Position = UDim2.new(0, 5, 0, 38), BackgroundColor3 = C.tab, BorderSizePixel = 0, Parent = Main})
+rnd(TabBar, 5) pad(TabBar, 2, 2, 2, 2)
+mk("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 2), HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center, Parent = TabBar})
+
+local tabs = {}
+local pages = {}
+local tabData = {"🏝️ Island", "🔍 TP Name", "⚙️ Other"}
+for i, tn in tabData do
+	local tb = mk("TextButton", {Size = UDim2.new(0, 63, 0, 20), BackgroundColor3 = i == 1 and C.tabA or Color3.fromRGB(28, 28, 38), Text = tn, TextColor3 = i == 1 and C.text or C.dim, TextSize = 9, Font = Enum.Font.GothamBold, AutoButtonColor = false, LayoutOrder = i, Parent = TabBar})
+	rnd(tb, 4) tabs[i] = tb
+end
+
+local Content = mk("Frame", {Size = UDim2.new(1, 0, 1, -68), Position = UDim2.new(0, 0, 0, 68), BackgroundTransparency = 1, ClipsDescendants = true, Parent = Main})
+
+local SLbl = mk("TextLabel", {Size = UDim2.new(1, -10, 0, 14), Position = UDim2.new(0, 5, 1, -16), BackgroundTransparency = 1, Text = "", TextColor3 = C.green, TextSize = 9, Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextTransparency = 1, ZIndex = 5, Parent = Main})
+local function status(t, col) SLbl.Text = t SLbl.TextColor3 = col or C.green tw(SLbl, TI.f, {TextTransparency = 0}):Play() task.delay(2, function() tw(SLbl, TI.s, {TextTransparency = 1}):Play() end) end
+
+local P1 = mk("ScrollingFrame", {Name = "P1", Size = UDim2.new(1, -4, 1, -2), Position = UDim2.new(0, 2, 0, 1), BackgroundTransparency = 1, ScrollBarThickness = 2, ScrollBarImageColor3 = C.accent, CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, Visible = true, Parent = Content})
+mk("UIListLayout", {Padding = UDim.new(0, 3), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder, Parent = P1})
+pad(P1, 2, 4, 0, 0) pages[1] = P1
+
+local islandSearch = mk("Frame", {Size = UDim2.new(1, -8, 0, 28), BackgroundColor3 = C.input, BorderSizePixel = 0, LayoutOrder = 0, Parent = P1})
+rnd(islandSearch, 6) stk(islandSearch, C.stroke, 1)
+mk("TextLabel", {Size = UDim2.new(0, 22, 1, 0), Position = UDim2.new(0, 3, 0, 0), BackgroundTransparency = 1, Text = "🔍", TextSize = 11, Parent = islandSearch})
+local islandInput = mk("TextBox", {Size = UDim2.new(1, -30, 1, 0), Position = UDim2.new(0, 24, 0, 0), BackgroundTransparency = 1, PlaceholderText = "Search island...", PlaceholderColor3 = C.dim, Text = "", TextColor3 = C.text, TextSize = 11, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, Parent = islandSearch})
+
+local islandBtns = {}
+for i, loc in Islands do
+	local btn = mk("TextButton", {Size = UDim2.new(1, -8, 0, 30), BackgroundColor3 = C.card, Text = "", AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = i, Parent = P1})
+	rnd(btn, 6)
+	mk("TextLabel", {Size = UDim2.new(0, 20, 1, 0), Position = UDim2.new(0, 4, 0, 0), BackgroundTransparency = 1, Text = loc.I, TextSize = 12, Parent = btn})
+	local nl = mk("TextLabel", {Size = UDim2.new(1, -28, 1, 0), Position = UDim2.new(0, 24, 0, 0), BackgroundTransparency = 1, Text = loc.N, TextColor3 = C.text, TextSize = 10, Font = Enum.Font.GothamSemibold, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Parent = btn})
+	btn.MouseEnter:Connect(function() tw(btn, TI.f, {BackgroundColor3 = C.cardH}):Play() end)
+	btn.MouseLeave:Connect(function() tw(btn, TI.f, {BackgroundColor3 = C.card}):Play() end)
+	btn.MouseButton1Click:Connect(function()
+		press(btn)
+		tw(btn, TI.f, {BackgroundColor3 = C.accent}):Play()
+		task.delay(0.1, function() tw(btn, TI.s, {BackgroundColor3 = C.card}):Play() end)
+		if safeTp(loc.P) then status("✓ " .. loc.N, C.green) else status("✗ Failed", C.red) end
+	end)
+	islandBtns[i] = {btn = btn, name = loc.N}
+end
+
+islandInput:GetPropertyChangedSignal("Text"):Connect(function()
+	local q = translateQuery(islandInput.Text)
+	for _, b in islandBtns do
+		b.btn.Visible = q == "" or fuzzyMatch(q, b.name:lower()) >= 0.35
+	end
+end)
+
+islandInput.FocusLost:Connect(function(enter)
+	if enter and islandInput.Text ~= "" then
+		local isl = searchIsland(islandInput.Text)
+		if isl then
+			if safeTp(isl.P) then status("✓ " .. isl.N, C.green) else status("✗ Failed", C.red) end
+		else
+			status("✗ Not found", C.red)
+		end
+	end
+end)
+
+local P2 = mk("Frame", {Name = "P2", Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false, Parent = Content})
+pages[2] = P2
+
+local npcSrch = mk("Frame", {Size = UDim2.new(1, -10, 0, 28), Position = UDim2.new(0, 5, 0, 3), BackgroundColor3 = C.input, BorderSizePixel = 0, Parent = P2})
+rnd(npcSrch, 6) stk(npcSrch, C.stroke, 1)
+mk("TextLabel", {Size = UDim2.new(0, 22, 1, 0), Position = UDim2.new(0, 3, 0, 0), BackgroundTransparency = 1, Text = "🔍", TextSize = 11, Parent = npcSrch})
+local npcIn = mk("TextBox", {Size = UDim2.new(1, -56, 1, 0), Position = UDim2.new(0, 24, 0, 0), BackgroundTransparency = 1, PlaceholderText = "NPC / Island name...", PlaceholderColor3 = C.dim, Text = "", TextColor3 = C.text, TextSize = 11, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, Parent = npcSrch})
+local goBtn = mk("TextButton", {Size = UDim2.new(0, 26, 0, 20), Position = UDim2.new(1, -30, 0.5, -10), BackgroundColor3 = C.accent, Text = "GO", TextColor3 = C.text, TextSize = 9, Font = Enum.Font.GothamBold, AutoButtonColor = false, Parent = npcSrch})
+rnd(goBtn, 4)
+
+local npcHint = mk("TextLabel", {Size = UDim2.new(1, -10, 0, 14), Position = UDim2.new(0, 5, 0, 34), BackgroundTransparency = 1, Text = "VI/EN supported · fuzzy match", TextColor3 = C.dim, TextSize = 8, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left, Parent = P2})
+
+local npcScroll = mk("ScrollingFrame", {Size = UDim2.new(1, -10, 1, -52), Position = UDim2.new(0, 5, 0, 50), BackgroundTransparency = 1, ScrollBarThickness = 2, ScrollBarImageColor3 = C.accent, CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, Parent = P2})
+mk("UIListLayout", {Padding = UDim.new(0, 3), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder, Parent = npcScroll})
+pad(npcScroll, 1, 3, 0, 0)
+
+local npcInfoLbl = mk("TextLabel", {Size = UDim2.new(1, -6, 0, 18), BackgroundTransparency = 1, Text = "", TextColor3 = C.dim, TextSize = 9, Font = Enum.Font.Gotham, LayoutOrder = 0, Parent = npcScroll})
+
+local function clearNPCR() for _, c in npcScroll:GetChildren() do if c:IsA("TextButton") then c:Destroy() end end end
+
+local function doNPCSearch()
+	local q = npcIn.Text:gsub("^%s+", ""):gsub("%s+$", "")
+	if #q < 2 then status("Min 2 chars", C.orange) return end
+	clearNPCR()
+	npcInfoLbl.Text = "Searching..."
+	npcInfoLbl.TextColor3 = C.orange
+
+	task.defer(function()
+		local isl = searchIsland(q)
+		local results = smartSearch(q)
+		if isl then
+			local ib = mk("TextButton", {Size = UDim2.new(1, -4, 0, 28), BackgroundColor3 = Color3.fromRGB(20, 40, 60), Text = "", AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = 0, Parent = npcScroll})
+			rnd(ib, 5)
+			mk("TextLabel", {Size = UDim2.new(0, 18, 1, 0), Position = UDim2.new(0, 4, 0, 0), BackgroundTransparency = 1, Text = isl.I, TextSize = 11, Parent = ib})
+			mk("TextLabel", {Size = UDim2.new(1, -24, 1, 0), Position = UDim2.new(0, 22, 0, 0), BackgroundTransparency = 1, Text = "🏝️ " .. isl.N, TextColor3 = C.fly, TextSize = 10, Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, Parent = ib})
+			ib.MouseEnter:Connect(function() tw(ib, TI.f, {BackgroundColor3 = Color3.fromRGB(30, 55, 80)}):Play() end)
+			ib.MouseLeave:Connect(function() tw(ib, TI.f, {BackgroundColor3 = Color3.fromRGB(20, 40, 60)}):Play() end)
+			ib.MouseButton1Click:Connect(function() press(ib) if safeTp(isl.P) then status("✓ " .. isl.N, C.green) end end)
+		end
+
+		if #results == 0 and not isl then
+			npcInfoLbl.Text = "Not found: \"" .. q .. "\""
+			npcInfoLbl.TextColor3 = C.red
+			status("✗ Not found", C.red)
+			return
+		end
+
+		local total = #results + (isl and 1 or 0)
+		npcInfoLbl.Text = total .. " results"
+		npcInfoLbl.TextColor3 = C.green
+
+		for idx, r in results do
+			if idx > 15 then break end
+			local root = getRoot()
+			local dist = root and math.floor((r.part.Position - root.Position).Magnitude) or 0
+			local ds = dist >= 1000 and string.format("%.1fk", dist / 1000) or tostring(dist)
+			local rb = mk("TextButton", {Size = UDim2.new(1, -4, 0, 28), BackgroundColor3 = C.card, Text = "", AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = idx, Parent = npcScroll})
+			rnd(rb, 5)
+			mk("TextLabel", {Size = UDim2.new(0, 16, 1, 0), Position = UDim2.new(0, 3, 0, 0), BackgroundTransparency = 1, Text = r.hasHum and "👤" or "📦", TextSize = 10, Parent = rb})
+			mk("TextLabel", {Size = UDim2.new(1, -62, 1, 0), Position = UDim2.new(0, 19, 0, 0), BackgroundTransparency = 1, Text = r.name, TextColor3 = C.text, TextSize = 10, Font = Enum.Font.GothamSemibold, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Parent = rb})
+			local dl = mk("TextLabel", {Size = UDim2.new(0, 36, 0, 14), Position = UDim2.new(1, -40, 0.5, -7), BackgroundColor3 = C.bg, TextColor3 = C.dim, Text = ds, TextSize = 8, Font = Enum.Font.GothamBold, Parent = rb})
+			rnd(dl, 3)
+			rb.MouseEnter:Connect(function() tw(rb, TI.f, {BackgroundColor3 = C.cardH}):Play() end)
+			rb.MouseLeave:Connect(function() tw(rb, TI.f, {BackgroundColor3 = C.card}):Play() end)
+			rb.MouseButton1Click:Connect(function()
+				press(rb)
+				tw(rb, TI.f, {BackgroundColor3 = C.accent}):Play()
+				task.delay(0.1, function() tw(rb, TI.s, {BackgroundColor3 = C.card}):Play() end)
+				if tpFaceNPC(r.part) then status("✓ → " .. r.name, C.green) else status("✗ Failed", C.red) end
+			end)
+		end
+	end)
+end
+
+goBtn.MouseButton1Click:Connect(function() press(goBtn) doNPCSearch() end)
+npcIn.FocusLost:Connect(function(enter) if enter then doNPCSearch() end end)
+npcIn.Focused:Connect(function() local s = npcSrch:FindFirstChildOfClass("UIStroke") if s then tw(s, TI.f, {Color = C.accent}):Play() end end)
+npcIn.FocusLost:Connect(function() local s = npcSrch:FindFirstChildOfClass("UIStroke") if s then tw(s, TI.f, {Color = C.stroke}):Play() end end)
+
+local P3 = mk("ScrollingFrame", {Name = "P3", Size = UDim2.new(1, -4, 1, -2), Position = UDim2.new(0, 2, 0, 1), BackgroundTransparency = 1, ScrollBarThickness = 2, ScrollBarImageColor3 = C.accent, CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y, BorderSizePixel = 0, Visible = false, Parent = Content})
+mk("UIListLayout", {Padding = UDim.new(0, 3), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder, Parent = P3})
+pad(P3, 3, 5, 0, 0) pages[3] = P3
+
+local function mkToggle(parent, name, icon, order, callback)
+	local frame = mk("Frame", {Size = UDim2.new(1, -8, 0, 30), BackgroundColor3 = C.card, BorderSizePixel = 0, LayoutOrder = order, Parent = parent})
+	rnd(frame, 6)
+	mk("TextLabel", {Size = UDim2.new(0, 18, 1, 0), Position = UDim2.new(0, 5, 0, 0), BackgroundTransparency = 1, Text = icon, TextSize = 11, Parent = frame})
+	mk("TextLabel", {Size = UDim2.new(1, -62, 1, 0), Position = UDim2.new(0, 24, 0, 0), BackgroundTransparency = 1, Text = name, TextColor3 = C.text, TextSize = 10, Font = Enum.Font.GothamSemibold, TextXAlignment = Enum.TextXAlignment.Left, Parent = frame})
+	local tbg = mk("Frame", {Size = UDim2.new(0, 32, 0, 16), Position = UDim2.new(1, -38, 0.5, -8), BackgroundColor3 = C.togOff, BorderSizePixel = 0, Parent = frame})
+	rnd(tbg, 8)
+	local tc = mk("Frame", {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = C.text, BorderSizePixel = 0, Parent = tbg})
+	rnd(tc, 6)
+	local on = false
+	mk("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", Parent = frame}).MouseButton1Click:Connect(function()
+		on = not on
+		tw(tbg, TI.s, {BackgroundColor3 = on and C.togOn or C.togOff}):Play()
+		tw(tc, TI.s, {Position = on and UDim2.new(0, 18, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)}):Play()
+		callback(on)
+	end)
+	return frame
+end
+
+local function mkSlider(parent, name, icon, order, min, max, default, callback)
+	local frame = mk("Frame", {Size = UDim2.new(1, -8, 0, 44), BackgroundColor3 = C.card, BorderSizePixel = 0, LayoutOrder = order, Parent = parent})
+	rnd(frame, 6)
+	mk("TextLabel", {Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(0, 5, 0, 3), BackgroundTransparency = 1, Text = icon, TextSize = 11, Parent = frame})
+	mk("TextLabel", {Size = UDim2.new(0, 70, 0, 18), Position = UDim2.new(0, 24, 0, 3), BackgroundTransparency = 1, Text = name, TextColor3 = C.text, TextSize = 10, Font = Enum.Font.GothamSemibold, TextXAlignment = Enum.TextXAlignment.Left, Parent = frame})
+	local vl = mk("TextLabel", {Size = UDim2.new(0, 34, 0, 16), Position = UDim2.new(1, -40, 0, 4), BackgroundColor3 = C.bg, TextColor3 = C.accent, Text = tostring(default), TextSize = 9, Font = Enum.Font.GothamBold, Parent = frame})
+	rnd(vl, 3)
+	local track = mk("Frame", {Size = UDim2.new(1, -16, 0, 5), Position = UDim2.new(0, 8, 0, 28), BackgroundColor3 = C.bg, BorderSizePixel = 0, Parent = frame})
+	rnd(track, 2)
+	local fill = mk("Frame", {Size = UDim2.new((default - min) / (max - min), 0, 1, 0), BackgroundColor3 = C.accent, BorderSizePixel = 0, Parent = track})
+	rnd(fill, 2)
+	local knob = mk("Frame", {Size = UDim2.new(0, 12, 0, 12), Position = UDim2.new((default - min) / (max - min), -6, 0.5, -6), BackgroundColor3 = C.text, BorderSizePixel = 0, Parent = track})
+	rnd(knob, 6)
+	local sliding = false
+	local function upd(pos)
+		local rel = math.clamp((pos.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+		local val = math.floor(min + rel * (max - min))
+		fill.Size = UDim2.new(rel, 0, 1, 0)
+		knob.Position = UDim2.new(rel, -6, 0.5, -6)
+		vl.Text = tostring(val)
+		callback(val)
+	end
+	track.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = true upd(input.Position) end end)
+	knob.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = true end end)
+	UserInputService.InputChanged:Connect(function(input) if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then upd(input.Position) end end)
+	UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = false end end)
+end
+
+mkSlider(P3, "Walk Speed", "🏃", 1, 16, 300, 16, function(val)
+	ST.ws = val
+	local _, hum = getRoot()
+	if hum then hum.WalkSpeed = val end
+end)
+
+mkSlider(P3, "Fly Speed", "💨", 2, 20, 500, 80, function(val) ST.flySpeed = val end)
+
+mkToggle(P3, "Fly", "🕊️", 3, function(on)
+	ST.fly = on
+	if on then startFly() status("Fly ON [WASD+Space+Shift]", C.green) else stopFly() status("Fly OFF", C.dim) end
+end)
+
+mkToggle(P3, "Inf Jump", "⬆️", 4, function(on)
+	ST.infJump = on
+	if on then
+		ST.jumpConn = UserInputService.JumpRequest:Connect(function()
+			local _, hum = getRoot()
+			if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+		end)
+		status("Inf Jump ON", C.green)
+	else
+		if ST.jumpConn then ST.jumpConn:Disconnect() ST.jumpConn = nil end
+		status("Inf Jump OFF", C.dim)
+	end
+end)
+
+mkToggle(P3, "Ghost (Soul)", "👻", 5, function(on)
+	ST.ghost = on
+	if on then startGhost() status("Ghost ON - Soul released", C.ghost) else stopGhost() status("Ghost OFF", C.dim) end
+end)
+
+mkToggle(P3, "Demon V4 Aura", "😈", 6, function(on)
+	ST.demon = on
+	if on then startDemon() status("DEMON V4 AWAKENED", C.demon) else stopDemon() status("Demon OFF", C.dim) end
+end)
+
+local function switchTab(idx)
+	if ST.tab == idx then return end
+	ST.tab = idx
+	for i, tb in tabs do
+		tw(tb, TI.s, {BackgroundColor3 = i == idx and C.tabA or Color3.fromRGB(28, 28, 38), TextColor3 = i == idx and C.text or C.dim}):Play()
+	end
+	for i, pg in pages do pg.Visible = i == idx end
+end
+for i, tb in tabs do tb.MouseButton1Click:Connect(function() press(tb) switchTab(i) end) end
+
+local function toggleUI()
+	ST.open = not ST.open
+	if ST.open then
+		Main.Visible = true Main.Size = UDim2.new(0, 210, 0, 0)
+		tw(Main, TI.o, {Size = UDim2.new(0, 210, 0, 360)}):Play()
+		TogBtn.Visible = false
+	else
+		tw(Main, TI.c, {Size = UDim2.new(0, 210, 0, 0)}):Play()
+		task.delay(0.16, function() if not ST.open then Main.Visible = false TogBtn.Visible = true end end)
+	end
+end
+XBtn.MouseButton1Click:Connect(function() press(XBtn) toggleUI() end)
+TogBtn.MouseButton1Click:Connect(function() press(TogBtn) toggleUI() end)
+
+do
+	local dg, di, ds, sp
+	TBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dg = true ds = input.Position sp = Main.Position
+			input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dg = false end end)
+		end
+	end)
+	TBar.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then di = input end end)
+	UserInputService.InputChanged:Connect(function(input) if input == di and dg then local d = input.Position - ds Main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y) end end)
+end
+
+do
+	local dg2, di2, ds2, sp2
+	TogBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dg2 = true ds2 = input.Position sp2 = TogBtn.Position
+			input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dg2 = false end end)
+		end
+	end)
+	TogBtn.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then di2 = input end end)
+	UserInputService.InputChanged:Connect(function(input) if input == di2 and dg2 then local d = input.Position - ds2 TogBtn.Position = UDim2.new(sp2.X.Scale, sp2.X.Offset + d.X, sp2.Y.Scale, sp2.Y.Offset + d.Y) end end)
+end
+
+UserInputService.InputBegan:Connect(function(input, gpe) if gpe then return end if input.KeyCode == Enum.KeyCode.RightControl then toggleUI() end end)
+
+RunService.Heartbeat:Connect(function()
+	local _, hum = getRoot()
+	if hum and ST.ws ~= 16 and not ST.fly then hum.WalkSpeed = ST.ws end
+end)
+
+LP.CharacterAdded:Connect(function(char)
+	task.wait(0.5)
+	local hum = char:WaitForChild("Humanoid", 5)
+	if hum then hum.WalkSpeed = ST.ws end
+	if ST.fly then ST.fly = false stopFly() end
+	if ST.ghost then ST.ghost = false stopGhost() end
+	if ST.demon then ST.demon = false stopDemon() end
+end)
+
+Main.Size = UDim2.new(0, 210, 0, 0)
+task.wait(0.1)
+tw(Main, TI.o, {Size = UDim2.new(0, 210, 0, 360)}):Play()
