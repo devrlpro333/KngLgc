@@ -1,0 +1,1329 @@
+-- ╔══════════════════════════════════════════════════════════════╗
+-- ║          🌊 BLOX FRUITS — PHANTOM HUB  [BETA v1.0]          ║
+-- ║              Crafted with ❤  | Không Bán — Không Leak        ║
+-- ╚══════════════════════════════════════════════════════════════╝
+
+-- ══════════════════════════════════════════════
+--  SERVICES & CORE
+-- ══════════════════════════════════════════════
+local Players        = game:GetService("Players")
+local RunService     = game:GetService("RunService")
+local TweenService   = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService    = game:GetService("HttpService")
+local Lighting       = game:GetService("Lighting")
+
+local LocalPlayer   = Players.LocalPlayer
+local PlayerGui     = LocalPlayer:WaitForChild("PlayerGui")
+local Character     = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid      = Character:WaitForChild("Humanoid")
+
+-- ══════════════════════════════════════════════
+--  STATE
+-- ══════════════════════════════════════════════
+local State = {
+    Fly         = false,
+    NoClip      = false,
+    Ghost       = false,
+    SpeedHack   = false,
+    InfiniteJump= false,
+    AntiKick    = false,
+    ESPActive   = false,
+    AutoFarm    = false,
+    FlySpeed    = 80,
+    WalkSpeed   = 40,
+    JumpPower   = 80,
+    CurrentTab  = "Teleport",
+    FlyBodyVelocity = nil,
+    FlyBodyGyro    = nil,
+    SearchQuery = "",
+    Visible     = true,
+}
+
+-- ══════════════════════════════════════════════
+--  TELEPORT LOCATIONS DATABASE
+-- ══════════════════════════════════════════════
+local Locations = {
+    -- 🗺 SEA 1 / MAIN
+    { name = "🏝 Đảo Chính (Main)",        category = "Main",     pos = Vector3.new(2064.01,  36.25,  1093.72) },
+    { name = "🍎 Shop Trái Ác Quỷ",         category = "Main",     pos = Vector3.new(2154.84,  79.04,   824.23) },
+    { name = "🔄 Reset Race / Stats",        category = "Main",     pos = Vector3.new(2052.92,  71.81,  1071.29) },
+    { name = "🍑 Random / Đổi Trái",        category = "Main",     pos = Vector3.new(2064.01,  36.25,  1093.72) },
+    { name = "🌌 Đảo Người Ngoài Hành Tinh",category = "Explore",  pos = Vector3.new(2186.42,  35.82,  1302.21) },
+    { name = "🐒 Đảo Khỉ",                  category = "Explore",  pos = Vector3.new(3725.56,  45.42,  8813.90) },
+    { name = "🌊 Check Sea Event",           category = "Event",    pos = Vector3.new(2227.14, 362.20, -1205.43) },
+    { name = "⚔ Saber Lord",               category = "Boss",     pos = Vector3.new(1687.59, 289.10, -1166.54) },
+    { name = "🌀 Awaken Fruit",             category = "Boss",     pos = Vector3.new(2066.98,  54.82,   551.41) },
+    { name = "🏰 Dungeon",                  category = "Dungeon",  pos = Vector3.new(10959.99, 134.04, 1250.57) },
+    { name = "🐚 Get SeaBeats v1+v2",       category = "Quest",    pos = Vector3.new(4543.48,  47.37, 11622.30) },
+    { name = "🌿 Rừng Luma",                category = "Explore",  pos = Vector3.new(-3935.36,  77.38,  6265.37) },
+    { name = "⚔ Đấu Trường Bị Lãng Quên", category = "Arena",    pos = Vector3.new(-6105.61,  33.69,  1014.73) },
+    { name = "🏯 Pháo Đài Drakenhole",      category = "Fortress", pos = Vector3.new( 6948.99,  49.78, -5753.79) },
+}
+
+-- Category colors
+local CategoryColor = {
+    Main    = Color3.fromRGB(80, 200, 120),
+    Explore = Color3.fromRGB(80, 160, 255),
+    Event   = Color3.fromRGB(255, 200, 50),
+    Boss    = Color3.fromRGB(255, 80,  80),
+    Dungeon = Color3.fromRGB(180, 80, 255),
+    Quest   = Color3.fromRGB(255, 140, 40),
+    Arena   = Color3.fromRGB(255, 60, 120),
+    Fortress= Color3.fromRGB(100, 220, 220),
+}
+
+-- ══════════════════════════════════════════════
+--  THEME
+-- ══════════════════════════════════════════════
+local Theme = {
+    BG          = Color3.fromRGB(8,   8,  14),
+    BG2         = Color3.fromRGB(12,  12, 22),
+    Panel       = Color3.fromRGB(15,  15, 28),
+    Border      = Color3.fromRGB(30,  30, 55),
+    Accent      = Color3.fromRGB(0,  200, 255),
+    Accent2     = Color3.fromRGB(130,  70, 255),
+    Accent3     = Color3.fromRGB(255,  50,  80),
+    Green       = Color3.fromRGB(0,   220, 130),
+    Gold        = Color3.fromRGB(255, 200,  50),
+    Text        = Color3.fromRGB(210, 220, 240),
+    TextDim     = Color3.fromRGB(80,   90, 120),
+    White       = Color3.fromRGB(255, 255, 255),
+}
+
+-- ══════════════════════════════════════════════
+--  UTILITIES
+-- ══════════════════════════════════════════════
+local function Create(class, props)
+    local obj = Instance.new(class)
+    for k, v in pairs(props) do
+        if k ~= "Parent" then obj[k] = v end
+    end
+    if props.Parent then obj.Parent = props.Parent end
+    return obj
+end
+
+local function Tween(obj, props, t, style, dir)
+    local info = TweenInfo.new(t or 0.25, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out)
+    TweenService:Create(obj, info, props):Play()
+end
+
+local function Lerp(a, b, t) return a + (b - a) * t end
+
+local function GetDistance(pos)
+    if not HumanoidRootPart then return 0 end
+    return math.floor((HumanoidRootPart.Position - pos).Magnitude)
+end
+
+local function Notify(title, msg, color)
+    local c = color or Theme.Accent
+    -- Simple in-game notification via ScreenGui
+    local notifGui = Instance.new("ScreenGui")
+    notifGui.Name = "PhantomNotif"
+    notifGui.ResetOnSpawn = false
+    notifGui.Parent = PlayerGui
+
+    local frame = Create("Frame", {
+        Parent = notifGui,
+        Position = UDim2.new(1, -320, 0, 20),
+        Size = UDim2.new(0, 300, 0, 70),
+        BackgroundColor3 = Theme.BG2,
+        BorderSizePixel = 0,
+    })
+    Create("UICorner",   { CornerRadius = UDim.new(0,10), Parent = frame })
+    Create("UIStroke",   { Color = c, Thickness = 1.5, Parent = frame })
+
+    Create("TextLabel", {
+        Parent = frame, Text = "⬡ "..title,
+        Position = UDim2.new(0,12,0,8), Size = UDim2.new(1,-24,0,22),
+        TextColor3 = c, TextSize = 14, Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    Create("TextLabel", {
+        Parent = frame, Text = msg,
+        Position = UDim2.new(0,12,0,30), Size = UDim2.new(1,-24,0,32),
+        TextColor3 = Theme.Text, TextSize = 12, Font = Enum.Font.Gotham,
+        BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+    })
+
+    Tween(frame, {Position = UDim2.new(1,-320,0,20)}, 0.01)
+    task.spawn(function()
+        task.wait(0.1)
+        Tween(frame, {Position = UDim2.new(1,-330,0,20)}, 0.4)
+        task.wait(3)
+        Tween(frame, {Position = UDim2.new(1, 50, 0,20)}, 0.35)
+        task.wait(0.4)
+        notifGui:Destroy()
+    end)
+end
+
+-- ══════════════════════════════════════════════
+--  CORE FUNCTIONS
+-- ══════════════════════════════════════════════
+
+-- TELEPORT
+local function TeleportTo(pos)
+    Character = LocalPlayer.Character
+    if not Character then return end
+    HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    if not HumanoidRootPart then return end
+
+    -- Triple-teleport technique for reliability
+    for i = 1, 3 do
+        HumanoidRootPart.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+        task.wait(0.05)
+    end
+end
+
+-- FLY
+local function StartFly()
+    Character = LocalPlayer.Character
+    if not Character then return end
+    HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    Humanoid = Character:FindFirstChild("Humanoid")
+    if not HumanoidRootPart or not Humanoid then return end
+
+    if State.FlyBodyVelocity then State.FlyBodyVelocity:Destroy() end
+    if State.FlyBodyGyro    then State.FlyBodyGyro:Destroy()    end
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity    = Vector3.zero
+    bv.MaxForce    = Vector3.new(1e5, 1e5, 1e5)
+    bv.Parent      = HumanoidRootPart
+    State.FlyBodyVelocity = bv
+
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque   = Vector3.new(1e5, 1e5, 1e5)
+    bg.P           = 1e4
+    bg.CFrame      = HumanoidRootPart.CFrame
+    bg.Parent      = HumanoidRootPart
+    State.FlyBodyGyro = bg
+
+    Humanoid.PlatformStand = true
+
+    RunService:BindToRenderStep("PhantomFly", 350, function()
+        if not State.Fly then
+            RunService:UnbindFromRenderStep("PhantomFly")
+            if State.FlyBodyVelocity then State.FlyBodyVelocity:Destroy() State.FlyBodyVelocity = nil end
+            if State.FlyBodyGyro    then State.FlyBodyGyro:Destroy()     State.FlyBodyGyro    = nil end
+            if Humanoid then Humanoid.PlatformStand = false end
+            return
+        end
+
+        local cam   = workspace.CurrentCamera
+        local speed = State.FlySpeed
+        local dir   = Vector3.zero
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0,1,0) end
+
+        bv.Velocity  = dir.Magnitude > 0 and dir.Unit * speed or Vector3.zero
+        bg.CFrame    = cam.CFrame
+    end)
+end
+
+local function StopFly()
+    State.Fly = false
+    -- RunService unbind happens inside the loop
+end
+
+-- NO CLIP
+local NoClipConn
+local function StartNoClip()
+    NoClipConn = RunService.Stepped:Connect(function()
+        if not State.NoClip then
+            NoClipConn:Disconnect()
+            -- Re-enable collisions
+            for _, p in pairs(Character:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = true end
+            end
+            return
+        end
+        for _, p in pairs(Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
+        end
+    end)
+end
+
+-- GHOST MODE (transparency + nocollide)
+local function ApplyGhost(on)
+    for _, p in pairs(Character:GetDescendants()) do
+        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+            p.LocalTransparencyModifier = on and 0.6 or 0
+            p.CanCollide = on and false or true
+        end
+    end
+end
+
+-- SPEED
+local function SetSpeed(speed)
+    State.WalkSpeed = speed
+    Humanoid = Character:FindFirstChild("Humanoid")
+    if Humanoid then Humanoid.WalkSpeed = speed end
+end
+
+-- JUMP POWER
+local function SetJump(jp)
+    State.JumpPower = jp
+    Humanoid = Character:FindFirstChild("Humanoid")
+    if Humanoid then Humanoid.JumpPower = jp end
+end
+
+-- INFINITE JUMP
+local InfJumpConn
+local function ToggleInfJump(on)
+    if on then
+        InfJumpConn = UserInputService.JumpRequest:Connect(function()
+            Humanoid = Character:FindFirstChild("Humanoid")
+            if Humanoid then Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+        end)
+    else
+        if InfJumpConn then InfJumpConn:Disconnect() InfJumpConn = nil end
+    end
+end
+
+-- ANTI KICK (fake ping)
+local function ToggleAntiKick(on)
+    if on then
+        -- Freeze anti-idle
+        LocalPlayer.Idled:Connect(function() end)
+    end
+end
+
+-- FULL BRIGHT
+local function SetFullBright(on)
+    if on then
+        Lighting.Ambient           = Color3.fromRGB(255,255,255)
+        Lighting.OutdoorAmbient    = Color3.fromRGB(255,255,255)
+        Lighting.Brightness        = 2
+        Lighting.GlobalShadows     = false
+        Lighting.FogEnd            = 100000
+    else
+        Lighting.Ambient           = Color3.fromRGB(127,127,127)
+        Lighting.OutdoorAmbient    = Color3.fromRGB(127,127,127)
+        Lighting.Brightness        = 2
+        Lighting.GlobalShadows     = true
+        Lighting.FogEnd            = 100000
+    end
+end
+
+-- FREEZE POSITION
+local FreezeConn
+local FrozenPos
+local function ToggleFreeze(on)
+    if on then
+        FrozenPos = HumanoidRootPart.CFrame
+        FreezeConn = RunService.Heartbeat:Connect(function()
+            if not State.FreezePos then
+                FreezeConn:Disconnect()
+                return
+            end
+            HumanoidRootPart.CFrame = FrozenPos
+        end)
+    end
+end
+
+-- CHARACTER respawn handler
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
+    Humanoid = char:WaitForChild("Humanoid")
+    -- Re-apply active states
+    if State.SpeedHack then SetSpeed(State.WalkSpeed) end
+    if State.InfiniteJump then ToggleInfJump(true) end
+    if State.Ghost then ApplyGhost(true) end
+end)
+
+-- ══════════════════════════════════════════════
+--  GUI BUILDER
+-- ══════════════════════════════════════════════
+-- Remove old instance
+if PlayerGui:FindFirstChild("PhantomHub") then
+    PlayerGui:FindFirstChild("PhantomHub"):Destroy()
+end
+
+local ScreenGui = Create("ScreenGui", {
+    Name = "PhantomHub",
+    ResetOnSpawn = false,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    Parent = PlayerGui,
+})
+
+-- ── Main Frame ──
+local MainFrame = Create("Frame", {
+    Parent = ScreenGui,
+    Name = "Main",
+    Position = UDim2.new(0.5, -280, 0.5, -200),
+    Size = UDim2.new(0, 560, 0, 420),
+    BackgroundColor3 = Theme.BG,
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+})
+Create("UICorner",   { CornerRadius = UDim.new(0,14), Parent = MainFrame })
+Create("UIStroke",   { Color = Theme.Border, Thickness = 1.5, Parent = MainFrame })
+
+-- Grid background
+local GridFrame = Create("Frame", {
+    Parent = MainFrame,
+    Size = UDim2.new(1,0,1,0),
+    BackgroundTransparency = 1,
+    ZIndex = 0,
+})
+-- Simulate scanline
+for i = 1, 20 do
+    Create("Frame", {
+        Parent = GridFrame,
+        Position = UDim2.new(0, 0, 0, i * 21),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(0, 220, 255),
+        BackgroundTransparency = 0.96,
+        BorderSizePixel = 0,
+        ZIndex = 0,
+    })
+end
+
+-- Ambient glow top-right
+local GlowFrame = Create("Frame", {
+    Parent = MainFrame,
+    Position = UDim2.new(1,-180, 0,-80),
+    Size = UDim2.new(0,200,0,200),
+    BackgroundColor3 = Theme.Accent2,
+    BackgroundTransparency = 0.88,
+    BorderSizePixel = 0,
+    ZIndex = 0,
+})
+Create("UICorner", { CornerRadius = UDim.new(1,0), Parent = GlowFrame })
+
+-- ── Title Bar ──
+local TitleBar = Create("Frame", {
+    Parent = MainFrame,
+    Position = UDim2.new(0,0,0,0),
+    Size = UDim2.new(1,0,0,44),
+    BackgroundColor3 = Theme.BG2,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,14), Parent = TitleBar })
+-- Fix bottom corners
+Create("Frame", {
+    Parent = TitleBar,
+    Position = UDim2.new(0,0,0.5,0),
+    Size = UDim2.new(1,0,0.5,0),
+    BackgroundColor3 = Theme.BG2,
+    BorderSizePixel = 0, ZIndex = 2,
+})
+
+-- Logo icon
+Create("TextLabel", {
+    Parent = TitleBar,
+    Position = UDim2.new(0,12,0,0),
+    Size = UDim2.new(0,36,1,0),
+    Text = "⬡",
+    TextColor3 = Theme.Accent,
+    TextSize = 20,
+    Font = Enum.Font.GothamBold,
+    BackgroundTransparency = 1,
+    ZIndex = 3,
+})
+
+Create("TextLabel", {
+    Parent = TitleBar,
+    Position = UDim2.new(0,46,0,0),
+    Size = UDim2.new(0,150,1,0),
+    Text = "PHANTOM HUB",
+    TextColor3 = Theme.Accent,
+    TextSize = 15,
+    Font = Enum.Font.GothamBold,
+    BackgroundTransparency = 1,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 3,
+})
+Create("TextLabel", {
+    Parent = TitleBar,
+    Position = UDim2.new(0,195,0,0),
+    Size = UDim2.new(0,50,1,0),
+    Text = "BETA",
+    TextColor3 = Theme.Accent2,
+    TextSize = 9,
+    Font = Enum.Font.GothamBold,
+    BackgroundTransparency = 1,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 3,
+})
+
+-- Status dot
+local StatusDot = Create("Frame", {
+    Parent = TitleBar,
+    Position = UDim2.new(0,248,0,17),
+    Size = UDim2.new(0,8,0,8),
+    BackgroundColor3 = Theme.Green,
+    BorderSizePixel = 0, ZIndex = 3,
+})
+Create("UICorner", { CornerRadius = UDim.new(1,0), Parent = StatusDot })
+
+Create("TextLabel", {
+    Parent = TitleBar,
+    Position = UDim2.new(0,260,0,0),
+    Size = UDim2.new(0,70,1,0),
+    Text = "ACTIVE",
+    TextColor3 = Theme.Green,
+    TextSize = 10,
+    Font = Enum.Font.GothamBold,
+    BackgroundTransparency = 1,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 3,
+})
+
+-- Close + Minimize
+local function makeHeaderBtn(x, icon, color)
+    local btn = Create("TextButton", {
+        Parent = TitleBar,
+        Position = UDim2.new(1, x, 0, 12),
+        Size = UDim2.new(0,20,0,20),
+        Text = icon,
+        TextColor3 = color,
+        TextSize = 14,
+        Font = Enum.Font.GothamBold,
+        BackgroundColor3 = Color3.fromRGB(30,30,50),
+        BorderSizePixel = 0, ZIndex = 4,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(0,5), Parent = btn })
+    return btn
+end
+
+local MinBtn   = makeHeaderBtn(-54, "−", Theme.Gold)
+local CloseBtn = makeHeaderBtn(-28, "✕", Theme.Accent3)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    Tween(MainFrame, {Position = UDim2.new(0.5,-280,1.5,0)}, 0.4)
+    task.wait(0.5)
+    ScreenGui:Destroy()
+end)
+
+MinBtn.MouseButton1Click:Connect(function()
+    State.Visible = not State.Visible
+    if State.Visible then
+        Tween(MainFrame, {Size = UDim2.new(0,560,0,420)}, 0.35)
+        Tween(MainFrame, {Position = UDim2.new(0.5,-280,0.5,-210)}, 0.35)
+    else
+        Tween(MainFrame, {Size = UDim2.new(0,560,0,44)}, 0.35)
+    end
+end)
+
+-- ── Dragging ──
+local dragging, dragStart, startPos
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging  = true
+        dragStart = input.Position
+        startPos  = MainFrame.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or
+                     input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- ── Tab Bar ──
+local TabBar = Create("Frame", {
+    Parent = MainFrame,
+    Position = UDim2.new(0,8,0,50),
+    Size = UDim2.new(0,106,0,312),
+    BackgroundColor3 = Theme.BG2,
+    BorderSizePixel = 0, ZIndex = 2,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,10), Parent = TabBar })
+Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = TabBar })
+
+-- Tab indicator
+local TabIndicator = Create("Frame", {
+    Parent = TabBar,
+    Position = UDim2.new(0,4,0,4),
+    Size = UDim2.new(1,-8,0,36),
+    BackgroundColor3 = Color3.fromRGB(20,20,40),
+    BorderSizePixel = 0, ZIndex = 1,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = TabIndicator })
+Create("UIStroke", { Color = Theme.Accent, Thickness = 1.2, Parent = TabIndicator })
+
+-- ── Content Area ──
+local ContentArea = Create("Frame", {
+    Parent = MainFrame,
+    Position = UDim2.new(0,120,0,50),
+    Size = UDim2.new(1,-128,0,360),
+    BackgroundColor3 = Theme.Panel,
+    BorderSizePixel = 0, ZIndex = 2,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,10), Parent = ContentArea })
+Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = ContentArea })
+
+-- ══════════════════════════════════════════════
+--  TAB SYSTEM
+-- ══════════════════════════════════════════════
+local Tabs = {}
+local TabFrames = {}
+local TabButtons = {}
+
+local tabDefs = {
+    { id = "Teleport", icon = "⬡", label = "TELEPORT" },
+    { id = "Movement", icon = "◈", label = "MOVEMENT" },
+    { id = "Player",   icon = "⊛", label = "PLAYER"   },
+    { id = "World",    icon = "≋", label = "WORLD"     },
+    { id = "Misc",     icon = "⌬", label = "MISC"      },
+}
+
+local function SwitchTab(id)
+    State.CurrentTab = id
+    for tid, frame in pairs(TabFrames) do
+        frame.Visible = (tid == id)
+    end
+    for tid, btn in pairs(TabButtons) do
+        local isActive = (tid == id)
+        Tween(btn, { TextColor3 = isActive and Theme.Accent or Theme.TextDim }, 0.2)
+        local icon = btn.Parent:FindFirstChild("Icon"..tid)
+        if icon then
+            Tween(icon, { TextColor3 = isActive and Theme.Accent or Theme.TextDim }, 0.2)
+        end
+    end
+    -- Move indicator
+    for i, td in ipairs(tabDefs) do
+        if td.id == id then
+            Tween(TabIndicator, { Position = UDim2.new(0,4,0, 4 + (i-1)*58) }, 0.3)
+            break
+        end
+    end
+end
+
+-- Build tab buttons
+for i, td in ipairs(tabDefs) do
+    local y = 4 + (i-1)*58
+
+    local iconLbl = Create("TextLabel", {
+        Name = "Icon"..td.id,
+        Parent = TabBar,
+        Position = UDim2.new(0,0,0, y+4),
+        Size = UDim2.new(1,0,0,20),
+        Text = td.icon,
+        TextColor3 = i==1 and Theme.Accent or Theme.TextDim,
+        TextSize = 16,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        ZIndex = 3,
+    })
+
+    local btn = Create("TextButton", {
+        Name = "Btn"..td.id,
+        Parent = TabBar,
+        Position = UDim2.new(0,0,0, y+22),
+        Size = UDim2.new(1,0,0,18),
+        Text = td.label,
+        TextColor3 = i==1 and Theme.Accent or Theme.TextDim,
+        TextSize = 8,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        ZIndex = 3,
+    })
+
+    local tabFrame = Create("ScrollingFrame", {
+        Name = "Tab"..td.id,
+        Parent = ContentArea,
+        Position = UDim2.new(0,0,0,0),
+        Size = UDim2.new(1,0,1,0),
+        BackgroundTransparency = 1,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        Visible = (i==1),
+        ZIndex = 3,
+    })
+    Create("UIListLayout", {
+        Parent = tabFrame,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0,6),
+    })
+    Create("UIPadding", {
+        Parent = tabFrame,
+        PaddingTop = UDim.new(0,8),
+        PaddingLeft = UDim.new(0,8),
+        PaddingRight = UDim.new(0,8),
+        PaddingBottom = UDim.new(0,8),
+    })
+
+    TabFrames[td.id]  = tabFrame
+    TabButtons[td.id] = btn
+
+    btn.MouseButton1Click:Connect(function() SwitchTab(td.id) end)
+end
+
+-- ══════════════════════════════════════════════
+--  UI COMPONENT FACTORIES
+-- ══════════════════════════════════════════════
+
+-- Section header
+local function AddSection(parent, text, color)
+    local c = color or Theme.Accent
+    local f = Create("Frame", {
+        Parent = parent,
+        Size = UDim2.new(1,0,0,22),
+        BackgroundTransparency = 1,
+        LayoutOrder = 0,
+    })
+    Create("TextLabel", {
+        Parent = f, Text = "── "..text.." ──",
+        Size = UDim2.new(1,0,1,0),
+        TextColor3 = c, TextSize = 10,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    return f
+end
+
+-- Toggle button
+local function AddToggle(parent, text, hint, callback, order)
+    local frame = Create("Frame", {
+        Parent = parent,
+        Size = UDim2.new(1,0,0,44),
+        BackgroundColor3 = Theme.BG2,
+        BorderSizePixel = 0,
+        LayoutOrder = order or 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = frame })
+    Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = frame })
+
+    Create("TextLabel", {
+        Parent = frame, Text = text,
+        Position = UDim2.new(0,10,0,4),
+        Size = UDim2.new(1,-70,0,20),
+        TextColor3 = Theme.Text, TextSize = 13,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    if hint then
+        Create("TextLabel", {
+            Parent = frame, Text = hint,
+            Position = UDim2.new(0,10,0,24),
+            Size = UDim2.new(1,-70,0,14),
+            TextColor3 = Theme.TextDim, TextSize = 10,
+            Font = Enum.Font.Gotham,
+            BackgroundTransparency = 1,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        })
+    end
+
+    local togBG = Create("Frame", {
+        Parent = frame,
+        Position = UDim2.new(1,-52,0.5,-10),
+        Size = UDim2.new(0,42,0,20),
+        BackgroundColor3 = Color3.fromRGB(25,25,45),
+        BorderSizePixel = 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(1,0), Parent = togBG })
+    Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = togBG })
+
+    local togKnob = Create("Frame", {
+        Parent = togBG,
+        Position = UDim2.new(0,2,0.5,-8),
+        Size = UDim2.new(0,16,0,16),
+        BackgroundColor3 = Theme.TextDim,
+        BorderSizePixel = 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(1,0), Parent = togKnob })
+
+    local on = false
+    local btn = Create("TextButton", {
+        Parent = frame,
+        Position = UDim2.new(0,0,0,0),
+        Size = UDim2.new(1,0,1,0),
+        Text = "",
+        BackgroundTransparency = 1,
+    })
+
+    btn.MouseButton1Click:Connect(function()
+        on = not on
+        if on then
+            Tween(togBG,   { BackgroundColor3 = Color3.fromRGB(0,50,40) }, 0.25)
+            Tween(togKnob, { Position = UDim2.new(1,-18,0.5,-8), BackgroundColor3 = Theme.Green }, 0.25)
+            Tween(frame,   { BackgroundColor3 = Color3.fromRGB(14,22,18) }, 0.25)
+        else
+            Tween(togBG,   { BackgroundColor3 = Color3.fromRGB(25,25,45) }, 0.25)
+            Tween(togKnob, { Position = UDim2.new(0,2,0.5,-8), BackgroundColor3 = Theme.TextDim }, 0.25)
+            Tween(frame,   { BackgroundColor3 = Theme.BG2 }, 0.25)
+        end
+        if callback then callback(on) end
+    end)
+
+    return { frame = frame, setOn = function(v)
+        on = v
+        btn.MouseButton1Click:Fire()
+    end}
+end
+
+-- Slider
+local function AddSlider(parent, text, min, max, default, callback, order)
+    local frame = Create("Frame", {
+        Parent = parent,
+        Size = UDim2.new(1,0,0,52),
+        BackgroundColor3 = Theme.BG2,
+        BorderSizePixel = 0,
+        LayoutOrder = order or 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = frame })
+    Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = frame })
+
+    local val = default or min
+    Create("TextLabel", {
+        Parent = frame, Text = text,
+        Position = UDim2.new(0,10,0,6),
+        Size = UDim2.new(0,160,0,16),
+        TextColor3 = Theme.Text, TextSize = 12,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+
+    local valLbl = Create("TextLabel", {
+        Parent = frame, Text = tostring(val),
+        Position = UDim2.new(1,-44,0,6),
+        Size = UDim2.new(0,40,0,16),
+        TextColor3 = Theme.Accent, TextSize = 12,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Right,
+    })
+
+    local trackBG = Create("Frame", {
+        Parent = frame,
+        Position = UDim2.new(0,10,0,32),
+        Size = UDim2.new(1,-20,0,6),
+        BackgroundColor3 = Color3.fromRGB(25,25,45),
+        BorderSizePixel = 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(1,0), Parent = trackBG })
+
+    local pct = (val - min) / (max - min)
+    local fill = Create("Frame", {
+        Parent = trackBG,
+        Position = UDim2.new(0,0,0,0),
+        Size = UDim2.new(pct,0,1,0),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(1,0), Parent = fill })
+
+    local knob = Create("Frame", {
+        Parent = trackBG,
+        Position = UDim2.new(pct,-7,0.5,-7),
+        Size = UDim2.new(0,14,0,14),
+        BackgroundColor3 = Theme.White,
+        BorderSizePixel = 0,
+        ZIndex = 4,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(1,0), Parent = knob })
+
+    local sliding = false
+    local function updateSlider(input)
+        local relX = (input.Position.X - trackBG.AbsolutePosition.X) / trackBG.AbsoluteSize.X
+        relX = math.clamp(relX, 0, 1)
+        val = math.floor(Lerp(min, max, relX))
+        valLbl.Text = tostring(val)
+        fill.Size = UDim2.new(relX,0,1,0)
+        knob.Position = UDim2.new(relX,-7,0.5,-7)
+        if callback then callback(val) end
+    end
+
+    trackBG.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+           input.UserInputType == Enum.UserInputType.Touch then
+            sliding = true
+            updateSlider(input)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or
+                        input.UserInputType == Enum.UserInputType.Touch) then
+            updateSlider(input)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+           input.UserInputType == Enum.UserInputType.Touch then
+            sliding = false
+        end
+    end)
+end
+
+-- Teleport Button (full featured)
+local function AddTeleportBtn(parent, loc, order)
+    local catColor = CategoryColor[loc.category] or Theme.Accent
+    local frame = Create("Frame", {
+        Parent = parent,
+        Size = UDim2.new(1,0,0,52),
+        BackgroundColor3 = Theme.BG2,
+        BorderSizePixel = 0,
+        LayoutOrder = order or 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = frame })
+    Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = frame })
+
+    -- Category accent strip
+    Create("Frame", {
+        Parent = frame,
+        Position = UDim2.new(0,0,0,0),
+        Size = UDim2.new(0,3,1,0),
+        BackgroundColor3 = catColor,
+        BorderSizePixel = 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = frame:FindFirstChild("Frame") or frame })
+
+    Create("TextLabel", {
+        Parent = frame, Text = loc.name,
+        Position = UDim2.new(0,12,0,5),
+        Size = UDim2.new(1,-100,0,20),
+        TextColor3 = Theme.Text, TextSize = 13,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    })
+
+    -- Category badge
+    Create("TextLabel", {
+        Parent = frame, Text = loc.category,
+        Position = UDim2.new(0,12,0,26),
+        Size = UDim2.new(0,80,0,14),
+        TextColor3 = catColor, TextSize = 9,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+
+    -- Distance
+    local distLbl = Create("TextLabel", {
+        Parent = frame,
+        Position = UDim2.new(0,12,0,40),
+        Size = UDim2.new(0,120,0,10),
+        Text = "≋ "..GetDistance(loc.pos).."m away",
+        TextColor3 = Theme.TextDim, TextSize = 9,
+        Font = Enum.Font.Gotham,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+
+    -- TP button
+    local tpBtn = Create("TextButton", {
+        Parent = frame,
+        Position = UDim2.new(1,-80,0.5,-14),
+        Size = UDim2.new(0,72,0,28),
+        Text = "⬡ TP",
+        TextColor3 = Theme.White,
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+    })
+    Create("UICorner", { CornerRadius = UDim.new(0,7), Parent = tpBtn })
+
+    tpBtn.MouseEnter:Connect(function()
+        Tween(tpBtn, { BackgroundColor3 = Color3.fromRGB(0,160,210) }, 0.15)
+    end)
+    tpBtn.MouseLeave:Connect(function()
+        Tween(tpBtn, { BackgroundColor3 = Theme.Accent }, 0.15)
+    end)
+
+    tpBtn.MouseButton1Click:Connect(function()
+        tpBtn.Text = "..."
+        Tween(tpBtn, { BackgroundColor3 = Theme.Green }, 0.1)
+        TeleportTo(loc.pos)
+        task.wait(0.5)
+        tpBtn.Text = "✓ Done"
+        task.wait(1)
+        tpBtn.Text = "⬡ TP"
+        Tween(tpBtn, { BackgroundColor3 = Theme.Accent }, 0.2)
+        Notify("Teleport", "→ "..loc.name, catColor)
+    end)
+
+    -- Update distance periodically
+    task.spawn(function()
+        while task.wait(3) do
+            if not frame.Parent then break end
+            distLbl.Text = "≋ "..GetDistance(loc.pos).."m away"
+        end
+    end)
+end
+
+-- ══════════════════════════════════════════════
+--  TAB CONTENT
+-- ══════════════════════════════════════════════
+
+-- ── TAB 1: TELEPORT ──
+local tpTab = TabFrames["Teleport"]
+
+-- Search bar
+local searchFrame = Create("Frame", {
+    Parent = tpTab,
+    Size = UDim2.new(1,0,0,34),
+    BackgroundColor3 = Theme.BG2,
+    BorderSizePixel = 0, LayoutOrder = 0,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = searchFrame })
+Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = searchFrame })
+
+Create("TextLabel", {
+    Parent = searchFrame, Text = "⊕",
+    Position = UDim2.new(0,8,0,0), Size = UDim2.new(0,20,1,0),
+    TextColor3 = Theme.Accent, TextSize = 14,
+    Font = Enum.Font.GothamBold, BackgroundTransparency = 1,
+})
+
+local searchBox = Create("TextBox", {
+    Parent = searchFrame,
+    Position = UDim2.new(0,28,0,0),
+    Size = UDim2.new(1,-36,1,0),
+    Text = "",
+    PlaceholderText = "SEARCH LOCATION...",
+    PlaceholderColor3 = Theme.TextDim,
+    TextColor3 = Theme.Text,
+    TextSize = 12, Font = Enum.Font.GothamBold,
+    BackgroundTransparency = 1,
+    ClearTextOnFocus = false,
+})
+
+-- Teleport list frame (inside tpTab, after search)
+local tpListFrame = Create("Frame", {
+    Parent = tpTab,
+    Size = UDim2.new(1,0,0, #Locations * 58 + 10),
+    BackgroundTransparency = 1,
+    LayoutOrder = 1,
+})
+Create("UIListLayout", {
+    Parent = tpListFrame,
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    Padding = UDim.new(0,6),
+})
+
+local function RebuildTeleportList(query)
+    -- Clear
+    for _, child in pairs(tpListFrame:GetChildren()) do
+        if not child:IsA("UIListLayout") then child:Destroy() end
+    end
+    local count = 0
+    for i, loc in ipairs(Locations) do
+        local q = query:lower()
+        if q == "" or loc.name:lower():find(q) or loc.category:lower():find(q) then
+            AddTeleportBtn(tpListFrame, loc, i)
+            count += 1
+        end
+    end
+    tpListFrame.Size = UDim2.new(1,0,0, count * 58 + 10)
+end
+
+RebuildTeleportList("")
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    RebuildTeleportList(searchBox.Text)
+end)
+
+-- ── TAB 2: MOVEMENT ──
+local movTab = TabFrames["Movement"]
+
+AddSection(movTab, "LOCOMOTION", Theme.Accent)
+
+AddToggle(movTab, "✈ Fly Mode", "Tự do bay trong không gian", function(on)
+    State.Fly = on
+    if on then StartFly()
+    else StopFly() end
+    Notify("Fly", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 2)
+
+AddToggle(movTab, "⚡ Speed Hack", "Tăng tốc độ di chuyển", function(on)
+    State.SpeedHack = on
+    SetSpeed(on and State.WalkSpeed or 16)
+    Notify("Speed", on and "Tốc độ: "..State.WalkSpeed or "Reset về 16", on and Theme.Green or Theme.Accent3)
+end, 3)
+
+AddSlider(movTab, "Walk Speed", 16, 300, 40, function(v)
+    State.WalkSpeed = v
+    if State.SpeedHack then SetSpeed(v) end
+end, 4)
+
+AddSlider(movTab, "Fly Speed", 20, 500, 80, function(v)
+    State.FlySpeed = v
+end, 5)
+
+AddSection(movTab, "PHYSICS", Theme.Accent2)
+
+AddToggle(movTab, "◈ No Clip", "Xuyên qua tường và vật thể", function(on)
+    State.NoClip = on
+    if on then StartNoClip() end
+    Notify("NoClip", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 7)
+
+AddToggle(movTab, "👻 Ghost Mode", "Trong suốt + NoCollide", function(on)
+    State.Ghost = on
+    ApplyGhost(on)
+    Notify("Ghost", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 8)
+
+AddToggle(movTab, "∞ Infinite Jump", "Nhảy không giới hạn", function(on)
+    State.InfiniteJump = on
+    ToggleInfJump(on)
+    Notify("Inf Jump", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 9)
+
+AddSlider(movTab, "Jump Power", 50, 500, 80, function(v)
+    SetJump(v)
+end, 10)
+
+-- ── TAB 3: PLAYER ──
+local plrTab = TabFrames["Player"]
+
+AddSection(plrTab, "PROTECTION", Theme.Gold)
+
+AddToggle(plrTab, "🛡 Anti Kick", "Chống bị kick khỏi game", function(on)
+    ToggleAntiKick(on)
+    Notify("Anti Kick", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 2)
+
+AddToggle(plrTab, "🔒 Freeze Position", "Đóng băng vị trí nhân vật", function(on)
+    State.FreezePos = on
+    ToggleFreeze(on)
+    Notify("Freeze", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 3)
+
+AddSection(plrTab, "APPEARANCE", Theme.Accent)
+
+AddToggle(plrTab, "👁 Semi Invisible", "Giảm độ hiển thị nhân vật", function(on)
+    for _, p in pairs(Character:GetDescendants()) do
+        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+            Tween(p, { Transparency = on and 0.7 or 0 }, 0.3)
+        end
+    end
+    Notify("Invisible", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 5)
+
+AddSection(plrTab, "STATS", Theme.Accent2)
+
+-- Stat display
+local statsFrame = Create("Frame", {
+    Parent = plrTab,
+    Size = UDim2.new(1,0,0,60),
+    BackgroundColor3 = Theme.BG2,
+    BorderSizePixel = 0, LayoutOrder = 7,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = statsFrame })
+Create("UIStroke", { Color = Theme.Border, Thickness = 1, Parent = statsFrame })
+
+local function UpdateStats()
+    local hum = Character:FindFirstChild("Humanoid")
+    local hrp = Character:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
+    if statsFrame.Parent then
+        statsFrame:ClearAllChildren()
+        Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = statsFrame })
+        local lines = {
+            string.format("HP: %.0f / %.0f", hum.Health, hum.MaxHealth),
+            string.format("Speed: %.0f  |  Jump: %.0f", hum.WalkSpeed, hum.JumpPower),
+            string.format("Pos: %.0f, %.0f, %.0f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z),
+        }
+        for i, line in ipairs(lines) do
+            Create("TextLabel", {
+                Parent = statsFrame, Text = line,
+                Position = UDim2.new(0,10,0,(i-1)*18+4),
+                Size = UDim2.new(1,-12,0,16),
+                TextColor3 = Theme.Text, TextSize = 11,
+                Font = Enum.Font.GothamBold,
+                BackgroundTransparency = 1,
+                TextXAlignment = Enum.TextXAlignment.Left,
+            })
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(1) do UpdateStats() end
+end)
+
+-- ── TAB 4: WORLD ──
+local wldTab = TabFrames["World"]
+
+AddSection(wldTab, "VISUAL", Theme.Gold)
+
+AddToggle(wldTab, "☀ Full Bright", "Ánh sáng tối đa mọi nơi", function(on)
+    SetFullBright(on)
+    Notify("FullBright", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 2)
+
+AddToggle(wldTab, "🌊 No Fog", "Xóa sương mù hoàn toàn", function(on)
+    Lighting.FogEnd   = on and 999999 or 100000
+    Lighting.FogStart = on and 999998 or 0
+    Notify("No Fog", on and "ĐÃ BẬT" or "Đã tắt", on and Theme.Green or Theme.Accent3)
+end, 3)
+
+AddSection(wldTab, "TIME", Theme.Accent)
+
+-- Time slider
+AddSlider(wldTab, "Time of Day", 0, 24, 12, function(v)
+    Lighting.ClockTime = v
+end, 5)
+
+AddSection(wldTab, "CAMERA", Theme.Accent2)
+
+AddSlider(wldTab, "Field of View", 70, 120, 70, function(v)
+    workspace.CurrentCamera.FieldOfView = v
+end, 7)
+
+-- ── TAB 5: MISC ──
+local miscTab = TabFrames["Misc"]
+
+AddSection(miscTab, "SYSTEM", Theme.Accent)
+
+-- Version info
+local versionFrame = Create("Frame", {
+    Parent = miscTab,
+    Size = UDim2.new(1,0,0,70),
+    BackgroundColor3 = Theme.BG2,
+    BorderSizePixel = 0, LayoutOrder = 2,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = versionFrame })
+Create("UIStroke", { Color = Theme.Accent, Thickness = 1.2, Parent = versionFrame })
+
+local vLines = {
+    {"PHANTOM HUB", 14, Theme.Accent},
+    {"BETA v1.0  —  Blox Fruits", 11, Theme.Text},
+    {"Tạo bởi Claude (Sonnet 4.6 + Opus 4.6)", 10, Theme.TextDim},
+}
+for i, vl in ipairs(vLines) do
+    Create("TextLabel", {
+        Parent = versionFrame, Text = vl[1],
+        Position = UDim2.new(0,12,0,(i-1)*20+6),
+        Size = UDim2.new(1,-16,0,18),
+        TextColor3 = vl[3], TextSize = vl[2],
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+end
+
+AddSection(miscTab, "KEYBINDS", Theme.Gold)
+
+local keybindFrame = Create("Frame", {
+    Parent = miscTab,
+    Size = UDim2.new(1,0,0,80),
+    BackgroundColor3 = Theme.BG2,
+    BorderSizePixel = 0, LayoutOrder = 4,
+})
+Create("UICorner", { CornerRadius = UDim.new(0,8), Parent = keybindFrame })
+
+local keys = {
+    {"RightShift", "Ẩn/Hiện menu"},
+    {"F", "Bật/Tắt Fly (giữ)"},
+    {"R", "Reload Character"},
+}
+for i, kv in ipairs(keys) do
+    Create("TextLabel", {
+        Parent = keybindFrame,
+        Text = string.format("[%s]  →  %s", kv[1], kv[2]),
+        Position = UDim2.new(0,12,0,(i-1)*24+8),
+        Size = UDim2.new(1,-16,0,18),
+        TextColor3 = Theme.Text, TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+end
+
+-- Credits
+AddSection(miscTab, "CREDITS", Theme.TextDim)
+Create("TextLabel", {
+    Parent = miscTab,
+    Text = "◈ Phantom Hub — Beta. Không bán — Không leak.",
+    Size = UDim2.new(1,0,0,24),
+    TextColor3 = Theme.TextDim, TextSize = 10,
+    Font = Enum.Font.Gotham,
+    BackgroundTransparency = 1,
+    LayoutOrder = 6,
+})
+
+-- ══════════════════════════════════════════════
+--  GLOBAL KEYBINDS
+-- ══════════════════════════════════════════════
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+
+    -- RightShift: Toggle menu
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        State.Visible = not State.Visible
+        if State.Visible then
+            MainFrame.Visible = true
+            Tween(MainFrame, {Size = UDim2.new(0,560,0,420)}, 0.3)
+        else
+            Tween(MainFrame, {Size = UDim2.new(0,560,0,44)}, 0.25)
+        end
+    end
+
+    -- R: Reload character
+    if input.KeyCode == Enum.KeyCode.R then
+        LocalPlayer:LoadCharacter()
+        Notify("Reload", "Đã reload nhân vật", Theme.Gold)
+    end
+
+    -- F: toggle fly
+    if input.KeyCode == Enum.KeyCode.F then
+        State.Fly = not State.Fly
+        if State.Fly then StartFly() else StopFly() end
+        Notify("Fly", State.Fly and "ĐÃ BẬT" or "Đã tắt", State.Fly and Theme.Green or Theme.Accent3)
+    end
+end)
+
+-- ══════════════════════════════════════════════
+--  INTRO ANIMATION
+-- ══════════════════════════════════════════════
+MainFrame.Position = UDim2.new(0.5,-280,1.5,0)
+MainFrame.BackgroundTransparency = 1
+Tween(MainFrame, {
+    Position = UDim2.new(0.5,-280,0.5,-210),
+    BackgroundTransparency = 0
+}, 0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+-- Status dot pulse
+task.spawn(function()
+    while StatusDot.Parent do
+        Tween(StatusDot, { BackgroundTransparency = 0.7 }, 1)
+        task.wait(1)
+        Tween(StatusDot, { BackgroundTransparency = 0 }, 1)
+        task.wait(1)
+    end
+end)
+
+-- ══════════════════════════════════════════════
+--  READY
+-- ══════════════════════════════════════════════
+Notify("PHANTOM HUB", "⬡ Beta v1.0 đã khởi động thành công!", Theme.Accent)
+SwitchTab("Teleport")
+
+print("╔══════════════════════════════╗")
+print("║  PHANTOM HUB — BETA v1.0    ║")
+print("║  Blox Fruits Script Ready   ║")
+print("║  [RightShift] = Toggle Menu ║")
+print("╚══════════════════════════════╝")
